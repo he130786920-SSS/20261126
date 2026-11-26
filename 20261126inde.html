@@ -1,0 +1,1229 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>奇幻五島漫遊｜3D 互動探索與闖關</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap">
+<style>
+  :root {
+    --water: #b8e4f0;
+    --accent: #2b7de9;
+    --warm: #f29930;
+  }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: var(--water); color-scheme: light; }
+  canvas { position: fixed; inset: 0; display: block; }
+  #hud canvas { z-index: 2; touch-action: none; }
+
+  /* ===== 介面樣式 ===== */
+  .ui { position: fixed; z-index: 5; font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif; color: #26262c; }
+  #top { left: 16px; top: 16px; background: rgba(255,255,255,.94); border-radius: 16px; padding: 12px 16px; box-shadow: 0 6px 18px rgba(38,38,44,.14); backdrop-filter: blur(6px); }
+  #top h1 { font-size: 19px; font-weight: 900; margin: 0 0 3px; color: #1d273b; }
+  #top small { color: #5c6475; font-size: 13px; display: block; }
+  #dots { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+  #dots span { width: 24px; height: 24px; border-radius: 50%; background: #e4e0d8; color: #8c877d; font: 700 12px/24px sans-serif; text-align: center; }
+  #dots span.ok { background: #4caf6a; color: #fff; }
+  #dots span.bad { background: #d9483b; color: #fff; }
+
+  /* 右上角功能按鈕群 */
+  #topRight { right: 16px; top: 16px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .pillBtn { border: 0; border-radius: 999px; font-weight: 900; font-size: 14px; padding: 10px 16px; cursor: pointer; font-family: inherit; transition: transform .1s; }
+  .pillBtn:active { transform: translateY(2px); }
+  #charBtn { background: #2b7de9; color: #fff; box-shadow: 0 4px 0 #1b56a8, 0 8px 18px rgba(38,38,44,.15); }
+  #nightBtn { background: #374151; color: #fff; box-shadow: 0 4px 0 #1f2937, 0 8px 18px rgba(38,38,44,.15); }
+  #helpBtn { background: #f2c230; color: #26262c; box-shadow: 0 4px 0 #c99b17, 0 8px 18px rgba(38,38,44,.15); }
+
+  /* 下方提示卡與操作列 */
+  #near { left: 50%; bottom: 16px; transform: translateX(-50%); width: min(520px, calc(100vw - 32px)); background: #fff; border-radius: 18px; padding: 14px 18px; box-shadow: 0 10px 30px rgba(38,38,44,.18); display: none; border-top: 6px solid #f2c230; }
+  #near .who { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  #near .av, .hcard .av { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 900; flex: none; }
+  #near b { font-size: 17px; }
+  #near em, .hcard em { font-style: normal; font-size: 12px; color: #fff; background: #26262c; border-radius: 999px; padding: 2px 9px; }
+  #near ul, .hcard ul { margin: 4px 0 0; padding-left: 20px; font-size: 14px; line-height: 1.65; color: #44444c; }
+  #tipline { left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 13px; color: rgba(38,38,44,.78); background: rgba(255,255,255,.78); padding: 5px 14px; border-radius: 999px; white-space: nowrap; pointer-events: none; }
+
+  /* 彈窗遮罩與卡片 */
+  .mask { position: fixed; inset: 0; z-index: 9; background: rgba(24,28,38,.48); display: none; align-items: center; justify-content: center; padding: 16px; }
+  .mask.on { display: flex; }
+  .card { background: #fff; border-radius: 22px; width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px 24px; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+  .card .tag { display: inline-block; background: #2b7de9; color: #fff; border-radius: 999px; padding: 3px 12px; font-size: 13px; font-weight: 700; }
+  .card h2 { font-size: 20px; line-height: 1.5; margin: 10px 0 14px; }
+
+  /* 題目選項 */
+  .opt { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; border: 2px solid #ebe6dc; background: #faf8f4; border-radius: 14px; padding: 11px 14px; margin-bottom: 9px; font: 500 15px/1.5 inherit; font-family: inherit; color: #26262c; cursor: pointer; }
+  .opt:hover { border-color: #2b7de9; }
+  .opt i { font-style: normal; flex: none; width: 24px; height: 24px; border-radius: 50%; background: #26262c; color: #fff; font-size: 13px; display: grid; place-items: center; margin-top: 1px; }
+  .opt.ok { border-color: #4caf6a; background: #eef8f0; } .opt.ok i { background: #4caf6a; }
+  .opt.bad { border-color: #d9483b; background: #fdf0ee; } .opt.bad i { background: #d9483b; }
+  .opt:disabled { cursor: default; }
+  .fb { border-radius: 14px; padding: 12px 14px; font-size: 14px; line-height: 1.65; margin-top: 6px; display: none; }
+  .fb.ok { display: block; background: #eef8f0; } .fb.bad { display: block; background: #fff6e0; }
+  .btn { margin-top: 14px; border: 0; border-radius: 12px; background: #26262c; color: #fff; font: 700 15px inherit; font-family: inherit; padding: 11px 20px; cursor: pointer; }
+  .btn.primary { background: #2b7de9; }
+  .btn.alt { background: #f1eee8; color: #26262c; margin-left: 8px; }
+
+  /* 提示角色列表與結算列 */
+  .hcard { display: flex; gap: 12px; border: 2px solid #f1eee8; border-radius: 16px; padding: 12px 14px; margin-bottom: 10px; }
+  .hcard .go { margin-left: auto; align-self: center; flex: none; border: 0; border-radius: 10px; background: #f2c230; font: 700 13px inherit; font-family: inherit; padding: 8px 12px; cursor: pointer; }
+  .hcard b { font-size: 16px; } .hcard small { color: #7b7b86; display: block; font-size: 12px; }
+  .row { display: flex; justify-content: space-between; border-bottom: 1px solid #f1eee8; padding: 8px 0; font-size: 14px; }
+  .big { font-size: 44px; font-weight: 900; color: #2b7de9; margin: 4px 0; }
+  .keys { font-size: 13px; color: #5c6475; line-height: 1.9; background: #f4f6fa; border-radius: 12px; padding: 10px 14px; margin-top: 10px; }
+
+  /* 角色自訂表單樣式 */
+  .formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .formFull { grid-column: 1 / -1; }
+  .field label { display: block; font-size: 13px; font-weight: 700; color: #4b5563; margin-bottom: 5px; }
+  .field input, .field select { width: 100%; box-sizing: border-box; padding: 9px 12px; border-radius: 10px; border: 2px solid #e5e7eb; font: 500 14px inherit; font-family: inherit; color: #1f2937; background: #f9fafb; }
+  .field input:focus, .field select:focus { outline: none; border-color: #2b7de9; background: #fff; }
+
+  @media (max-width: 640px) {
+    #tipline { display: none; }
+    #top h1 { font-size: 16px; }
+    .formGrid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<!-- 載入 p5.js：負責介面標籤、鍵盤與滑鼠事件 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<!-- 設定 importmap：告訴瀏覽器 three.js 模組的位置 -->
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+
+<div id="hud"></div>
+
+<div class="ui" id="top">
+  <h1>🏝️ 奇幻五島漫遊</h1>
+  <small id="stat">答題 0 / 6　首次答對 0 題　🪙 金幣 0 / 8</small>
+  <div id="dots"></div>
+</div>
+
+<div class="ui" id="topRight">
+  <button class="pillBtn" id="charBtn">🎨 角色設定</button>
+  <button class="pillBtn" id="nightBtn">🌙 夜晚模式</button>
+  <button class="pillBtn" id="helpBtn">💡 HELP 提示</button>
+</div>
+
+<div class="ui" id="near"></div>
+<div class="ui" id="tipline">走進橘色光圈答題　靠近「?」角色看提示　拖曳旋轉視角（最低俯角 18° 不穿幫）　滾輪縮放　Q/E 轉向　N 切換日夜　C 切換視角中心</div>
+
+<div class="mask ui" id="mQuiz"><div class="card" id="quizCard"></div></div>
+<div class="mask ui" id="mHelp"><div class="card" id="helpCard"></div></div>
+
+<div class="mask ui" id="mChar">
+  <div class="card">
+    <span class="tag">角色與夥伴設定</span>
+    <h2>打造你的專屬島嶼探險家</h2>
+    <div class="formGrid">
+      <div class="field formFull">
+        <label for="inpName">我是誰（角色頭頂名稱）</label>
+        <input id="inpName" type="text" maxlength="14" value="探險家小安" placeholder="請輸入你的名字...">
+      </div>
+      <div class="field">
+        <label for="selPet">隨行寵物夥伴</label>
+        <select id="selPet">
+          <option value="rabbit" selected>🐰 可愛白兔</option>
+          <option value="dog">🐶 忠實柴犬</option>
+          <option value="cat">🐱 橘色小貓</option>
+          <option value="none">🚫 不帶寵物</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="selStyle">服裝與背包風格</label>
+        <select id="selStyle">
+          <option value="nature" selected>🌿 自然探索（森林綠＋黃背包）</option>
+          <option value="travel">🎒 都會背包客（海湛藍＋橘背包）</option>
+          <option value="tech">⚡ 科技潮流（極夜黑＋青背包）</option>
+          <option value="sakura">🌸 春日休閒（櫻花粉＋白背包）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="selHairStyle">髮型與頭飾</label>
+        <select id="selHairStyle">
+          <option value="ponytail" selected>🎀 俏皮馬尾</option>
+          <option value="short">💇 俐落短髮</option>
+          <option value="helmet">⛑️ 探險安全帽</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="selHairColor">頭髮顏色</label>
+        <select id="selHairColor">
+          <option value="0x4a2e1b" selected>深棕色</option>
+          <option value="0x8b4513">栗子色</option>
+          <option value="0xe6b830">閃耀金</option>
+          <option value="0x1f242d">酷炫黑</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn primary" id="saveCharBtn">儲存套用</button>
+    <button class="btn alt" id="closeCharBtn">取消</button>
+  </div>
+</div>
+
+<div class="mask ui on" id="mIntro">
+  <div class="card">
+    <span class="tag">Three.js × p5.js 低多邊形 3D 互動世界</span>
+    <h2>歡迎來到「奇幻五島漫遊」！<br>自訂專屬角色、收集金幣並完成六大關卡。</h2>
+    <div style="font-size:15px;line-height:1.8">
+      🎨 點擊右上角 <b>角色設定</b> 可自由更改<b>名字、隨行寵物（兔子／小狗／小貓）、服裝與髮型</b><br>
+      🟠 <b>走進橘色光圈</b>觸發島嶼知識問答（答對變綠圈，計分以首次作答為準）<br>
+      💡 頭上有<b>黃色「?」</b>的是<b>提示角色</b>，靠近他們會自動揮手並顯示解題線索<br>
+      🪙 探索五大島嶼（科技城、櫻花公園、智慧校園、海濱步道、鄉村市集）收集旋轉金幣！
+    </div>
+    <div class="keys">
+      方向鍵 / WASD 移動　點擊地面或標籤自動前往　左鍵拖曳旋轉視角（最低限制 18° 防穿幫）<br>
+      滾輪或 + − 平滑縮放　Q / E 轉 90°　C 切換跟隨主角／鎖定島嶼中心　N 切換日夜路燈　R 重設鏡頭
+    </div>
+    <button class="btn primary" id="startBtn">開始探索島嶼</button>
+    <button class="btn alt" id="introCharBtn">先設定角色外觀</button>
+  </div>
+</div>
+
+<div class="mask ui" id="mEnd"><div class="card" id="endCard"></div></div>
+
+<script type="module">
+// =====================================================================
+// 奇幻五島漫遊（Three.js 3D 低多邊形場景 + p5.js 2D 互動介面）
+// =====================================================================
+import * as THREE from 'three';
+
+// ---------------- 1. 統一調色盤 ----------------
+const C = {
+  skyDay: 0xb8e4f0,
+  skyNight: 0x162038,
+  waterDay: 0x7fcce0,
+  waterNight: 0x1d3152,
+  side: 0xb5aa99,
+  dark: 0x3f434e,
+  accent: 0x2b7de9,
+  orange: 0xf27d30,
+  yellow: 0xf2c230,
+  white: 0xf8f6f0,
+  trunk: 0x856246,
+  leaves: [0x92c472, 0x7bb05d, 0xaad188],
+};
+const hex = n => '#' + n.toString(16).padStart(6, '0');
+
+// ---------------- 2. Three.js 渲染器與正交攝影機 ----------------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(C.skyDay);
+
+let viewSize = 25;
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 350);
+const CAM_DIST = 60;
+const YAW0 = Math.PI / 4, PITCH0 = Math.atan(1 / Math.SQRT2);
+let camYaw = YAW0, camPitch = PITCH0;
+let yawTarget = YAW0, pitchTarget = PITCH0;
+let zoomTarget = 25;
+let centerLockMode = false;
+// 嚴格限制俯角範圍在 18°～72° 之間，避免鏡頭轉到平台底下穿幫
+const PITCH_MIN = 18 * Math.PI / 180, PITCH_MAX = 72 * Math.PI / 180;
+
+function fitCamera() {
+  const a = innerWidth / innerHeight;
+  const v = Math.max(viewSize, viewSize * 0.75 / a);
+  camera.left = -v * a / 2; camera.right = v * a / 2;
+  camera.top = v / 2; camera.bottom = -v / 2;
+  camera.updateProjectionMatrix();
+}
+fitCamera();
+
+// ---------------- 3. 燈光與日夜系統 ----------------
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x9fbfa0, 1.5);
+scene.add(hemiLight);
+
+const sun = new THREE.DirectionalLight(0xfff4e0, 1.7);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -38, right: 38, top: 38, bottom: -38, near: 1, far: 130 });
+sun.shadow.bias = -0.0005;
+scene.add(sun, sun.target);
+
+let isNight = false;
+const lampMaterials = [];
+const lampLights = [];
+
+// ---------------- 4. 基礎幾何建模小工具 ----------------
+const matCache = {};
+const mat = (color) => matCache[color] ??= new THREE.MeshLambertMaterial({ color, flatShading: true });
+
+function box(w, h, d, color, x, y, z, parent = scene) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+  m.position.set(x, y, z);
+  m.castShadow = m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+function cyl(rt, rb, h, color, x, y, z, parent = scene, seg = 8) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat(color));
+  m.position.set(x, y, z);
+  m.castShadow = m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+function ball(r, color, x, y, z, parent = scene, detail = 1) {
+  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, detail), mat(color));
+  m.position.set(x, y, z);
+  m.castShadow = m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+function canvasTex(draw, rx, ry) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  draw(c.getContext('2d'));
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+// ---------------- 5. 行走範圍與碰撞偵測 ----------------
+const walkRects = [];
+const blockRects = [];
+const blockCircles = [];
+
+function walkable(x, z) {
+  return walkRects.some(r => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1);
+}
+function isFree(x, z, r = 0.35) {
+  if (!walkable(x, z)) return false;
+  if (blockCircles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + r)) return false;
+  return !blockRects.some(b => x > b.x0 - r && x < b.x1 + r && z > b.z0 - r && z < b.z1 + r);
+}
+
+// ---------------- 6. 水面與波紋 ----------------
+const waterMat = new THREE.MeshLambertMaterial({ color: C.waterDay });
+const water = new THREE.Mesh(new THREE.PlaneGeometry(450, 450), waterMat);
+water.rotation.x = -Math.PI / 2;
+water.position.y = -1.1;
+water.receiveShadow = true;
+scene.add(water);
+
+const ripples = [];
+for (let i = 0; i < 48; i++) {
+  const r = box(1.6 + Math.random() * 2.2, 0.02, 0.12, 0xdcf4fa, (Math.random() - 0.5) * 110, -1.05, (Math.random() - 0.5) * 110);
+  r.castShadow = false;
+  r.userData.phase = Math.random() * 6;
+  ripples.push(r);
+}
+
+// ---------------- 7. 五大主題島嶼平台 ----------------
+const TOPS = {
+  tech: (w, d) => canvasTex(g => {
+    g.fillStyle = '#dce4ee'; g.fillRect(0, 0, 128, 128);
+    g.strokeStyle = '#c1cfdf'; g.lineWidth = 4;
+    g.strokeRect(0, 0, 128, 128); g.strokeRect(0, 0, 64, 64); g.strokeRect(64, 64, 64, 64);
+  }, w / 2, d / 2),
+  grass: (w, d) => canvasTex(g => {
+    g.fillStyle = '#a4d486'; g.fillRect(0, 0, 128, 128);
+    g.fillStyle = '#8fc270';
+    for (let i = 0; i < 32; i++) g.fillRect(Math.random() * 128, Math.random() * 128, 4, 4);
+  }, w / 3, d / 3),
+  deck: (w, d) => canvasTex(g => {
+    g.fillStyle = '#d4ae84'; g.fillRect(0, 0, 128, 128);
+    g.fillStyle = '#b89066';
+    for (let y = 0; y < 128; y += 32) g.fillRect(0, y, 128, 3);
+  }, w / 2, d / 2),
+  sand: (w, d) => canvasTex(g => {
+    g.fillStyle = '#eee5d3'; g.fillRect(0, 0, 128, 128);
+    g.strokeStyle = '#ded2ba'; g.lineWidth = 3; g.strokeRect(0, 0, 128, 128);
+  }, w / 3, d / 3),
+  country: (w, d) => canvasTex(g => {
+    g.fillStyle = '#e3d5c1'; g.fillRect(0, 0, 128, 128);
+    g.strokeStyle = '#cbbba4'; g.lineWidth = 4;
+    g.strokeRect(4, 4, 56, 56); g.strokeRect(68, 68, 56, 56);
+  }, w / 2, d / 2),
+};
+
+const stripeTex = (len) => canvasTex(g => {
+  g.fillStyle = '#f2c230'; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = '#2b2d35';
+  for (let x = -128; x < 256; x += 64) {
+    g.beginPath(); g.moveTo(x, 128); g.lineTo(x + 32, 128); g.lineTo(x + 96, 0); g.lineTo(x + 64, 0); g.fill();
+  }
+}, len / 1.2, 1);
+
+const platforms = [
+  { no: '01', name: '科技城',   x: 0,   z: 0,   w: 18, d: 16, top: 'tech' },
+  { no: '02', name: '櫻花公園', x: -24, z: 1,   w: 16, d: 16, top: 'grass' },
+  { no: '03', name: '智慧校園', x: 1,   z: -22, w: 18, d: 12, top: 'sand' },
+  { no: '04', name: '海濱步道', x: 23,  z: -1,  w: 14, d: 18, top: 'deck' },
+  { no: '05', name: '鄉村市集', x: 0,   z: 22,  w: 16, d: 12, top: 'country' },
+];
+
+platforms.forEach(p => {
+  box(p.w, 1.2, p.d, C.side, p.x, -0.6, p.z);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(p.w, 0.06, p.d), new THREE.MeshLambertMaterial({ map: TOPS[p.top](p.w, p.d) }));
+  top.position.set(p.x, 0.03, p.z);
+  top.receiveShadow = true;
+  scene.add(top);
+  const s1 = new THREE.Mesh(new THREE.BoxGeometry(p.w, 0.35, 0.03), new THREE.MeshLambertMaterial({ map: stripeTex(p.w) }));
+  s1.position.set(p.x, -0.3, p.z + p.d / 2 + 0.02); scene.add(s1);
+  const s2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.35, p.d), new THREE.MeshLambertMaterial({ map: stripeTex(p.d) }));
+  s2.position.set(p.x + p.w / 2 + 0.02, -0.3, p.z); scene.add(s2);
+  walkRects.push({ x0: p.x - p.w / 2 + 0.4, x1: p.x + p.w / 2 - 0.4, z0: p.z - p.d / 2 + 0.4, z1: p.z + p.d / 2 - 0.4 });
+});
+
+// ---------------- 8. 橋樑 ----------------
+function bridge(cx, cz, len, alongX) {
+  const g = new THREE.Group();
+  g.position.set(cx, 0, cz);
+  if (!alongX) g.rotation.y = Math.PI / 2;
+  box(len, 0.2, 2.4, C.dark, 0, -0.02, 0, g);
+  for (let i = -len / 2 + 0.3; i < len / 2; i += 0.55) box(0.08, 0.01, 2.4, 0x636875, i, 0.085, 0, g);
+  for (const s of [-1, 1]) {
+    box(len, 0.1, 0.1, C.yellow, 0, 0.9, s * 1.15, g);
+    for (let i = -len / 2 + 0.3; i <= len / 2 - 0.2; i += 1.2) box(0.1, 0.9, 0.1, C.yellow, i, 0.45, s * 1.15, g);
+    cyl(0.16, 0.16, 1.2, C.side, 0, -0.7, s * 0.95, g);
+  }
+  scene.add(g);
+  walkRects.push(alongX
+    ? { x0: cx - len / 2 - 0.2, x1: cx + len / 2 + 0.2, z0: cz - 0.95, z1: cz + 0.95 }
+    : { x0: cx - 0.95, x1: cx + 0.95, z0: cz - len / 2 - 0.2, z1: cz + len / 2 + 0.2 });
+}
+bridge(-12.5, 1.5, 7.6, true);
+bridge(2, -12, 8.6, false);
+bridge(12.5, -1, 7.6, true);
+bridge(3.5, 12, 8.6, false);
+
+// ---------------- 9. 景觀道具函式 ----------------
+function tree(x, z, s = 1) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s);
+  cyl(0.14, 0.2, 1.2, C.trunk, 0, 0.6, 0, g, 6);
+  const pick = () => C.leaves[Math.floor(Math.random() * 3)];
+  ball(0.8, pick(), 0, 1.7, 0, g);
+  ball(0.55, pick(), 0.45, 1.45, 0.25, g);
+  ball(0.5, pick(), -0.35, 1.55, -0.3, g);
+  g.rotation.y = Math.random() * 6; scene.add(g);
+  blockCircles.push({ x, z, r: 0.35 * s });
+}
+function sakura(x, z, s = 1) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s);
+  cyl(0.13, 0.2, 1.3, 0x7a5646, 0, 0.65, 0, g, 6);
+  const pinks = [0xf7b9cc, 0xf299b4, 0xfce0e8];
+  const pick = () => pinks[Math.floor(Math.random() * 3)];
+  ball(0.82, pick(), 0, 1.8, 0, g); ball(0.58, pick(), 0.5, 1.5, 0.2, g); ball(0.52, pick(), -0.4, 1.6, -0.3, g);
+  g.rotation.y = Math.random() * 6; scene.add(g);
+  blockCircles.push({ x, z, r: 0.35 * s });
+}
+function pine(x, z, s = 1) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s);
+  cyl(0.12, 0.16, 0.8, C.trunk, 0, 0.4, 0, g, 6);
+  [[0.95, 1.0, 1.05], [0.75, 0.9, 1.65], [0.5, 0.8, 2.2]].forEach(([r, h, y], i) =>
+    cyl(0.02, r, h, [0x558f50, 0x67a660, 0x7ec275][i], 0, y, 0, g, 7));
+  scene.add(g);
+  blockCircles.push({ x, z, r: 0.35 * s });
+}
+function bush(x, z, color) {
+  ball(0.35, C.leaves[0], x, 0.25, z, scene, 0);
+  ball(0.12, color, x + 0.15, 0.55, z + 0.1, scene, 0);
+  ball(0.1, color, x - 0.15, 0.5, z - 0.05, scene, 0);
+}
+function bench(x, z, rotY = 0) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rotY;
+  box(1.6, 0.1, 0.5, 0xb07d52, 0, 0.45, 0, g);
+  box(1.6, 0.4, 0.08, 0xb07d52, 0, 0.75, -0.22, g);
+  for (const s of [-0.65, 0.65]) box(0.08, 0.45, 0.45, C.dark, s, 0.22, 0, g);
+  scene.add(g);
+}
+function lamp(x, z) {
+  cyl(0.06, 0.08, 2.5, C.dark, x, 1.25, z, scene, 6);
+  const lm = new THREE.MeshLambertMaterial({ color: 0xfff3c4, emissive: 0x000000 });
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.22, 0.36), lm);
+  head.position.set(x, 2.55, z); scene.add(head);
+  lampMaterials.push(lm);
+  const pt = new THREE.PointLight(0xffd27d, 0, 9);
+  pt.position.set(x, 2.3, z); scene.add(pt);
+  lampLights.push(pt);
+  blockCircles.push({ x, z, r: 0.16 });
+}
+function mailbox(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  cyl(0.07, 0.09, 0.8, C.dark, 0, 0.4, 0, g, 6);
+  box(0.46, 0.55, 0.38, 0xd9483b, 0, 1.0, 0, g);
+  box(0.32, 0.06, 0.04, C.white, 0, 1.12, 0.2, g);
+  scene.add(g);
+  blockCircles.push({ x, z, r: 0.28 });
+}
+function trashCan(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  cyl(0.22, 0.18, 0.65, 0x4caf6a, -0.24, 0.33, 0, g, 8);
+  cyl(0.24, 0.24, 0.08, C.white, -0.24, 0.68, 0, g, 8);
+  cyl(0.22, 0.18, 0.65, C.accent, 0.24, 0.33, 0, g, 8);
+  cyl(0.24, 0.24, 0.08, C.white, 0.24, 0.68, 0, g, 8);
+  scene.add(g);
+  blockCircles.push({ x, z, r: 0.42 });
+}
+function bike(color) {
+  const g = new THREE.Group();
+  for (const s of [-0.55, 0.55]) {
+    const w = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.05, 6, 16), mat(C.dark));
+    w.position.set(0, 0.36, s); w.rotation.y = Math.PI / 2; w.castShadow = true; g.add(w);
+  }
+  box(0.06, 0.06, 1.1, color, 0, 0.62, 0, g);
+  box(0.06, 0.45, 0.06, color, 0, 0.6, -0.15, g);
+  box(0.2, 0.06, 0.3, 0x333333, 0, 0.84, -0.15, g);
+  box(0.5, 0.05, 0.05, C.dark, 0, 0.95, 0.5, g);
+  box(0.05, 0.4, 0.05, color, 0, 0.75, 0.5, g);
+  return g;
+}
+function techBus(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  box(4.8, 1.9, 2.1, C.accent, 0, 1.25, 0, g);
+  box(4.85, 0.22, 2.15, C.white, 0, 2.25, 0, g);
+  for (let i = -1.7; i <= 1.7; i += 0.85) box(0.68, 0.6, 2.16, 0xa8e0f0, i, 1.55, 0, g);
+  box(0.05, 0.7, 1.6, 0xa8e0f0, 2.4, 1.5, 0, g);
+  for (const wx of [-1.5, 1.5]) for (const wz of [-1, 1]) {
+    const w = cyl(0.42, 0.42, 0.3, C.dark, wx, 0.42, wz, g, 12); w.rotation.x = Math.PI / 2;
+  }
+  scene.add(g);
+  blockRects.push({ x0: x - 2.4, x1: x + 2.4, z0: z - 1.05, z1: z + 1.05 });
+}
+
+// ---------------- 10. 佈置五座島嶼 ----------------
+const techTower = new THREE.Group(); techTower.position.set(-5.2, 0, -4.8);
+box(3.4, 4.2, 3.2, 0xe8eef5, 0, 2.1, 0, techTower);
+for (let y = 1.0; y <= 3.4; y += 0.8) box(3.46, 0.35, 3.26, 0x5ca8ff, 0, y, 0, techTower);
+cyl(0.08, 0.08, 1.4, C.dark, 0, 4.9, 0, techTower, 6);
+const holoRing = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.06, 6, 28), new THREE.MeshBasicMaterial({ color: 0x00d2ff }));
+holoRing.position.set(0, 4.8, 0); holoRing.rotation.x = Math.PI / 2; techTower.add(holoRing);
+scene.add(techTower);
+blockRects.push({ x0: -6.9, x1: -3.5, z0: -6.4, z1: -3.2 });
+
+techBus(1.5, -5.2);
+for (let i = 0; i < 6; i++) box(0.5, 0.02, 2.4, C.white, -5.5 + i * 0.85, 0.07, 4.8);
+for (let i = 0; i < 4; i++) { const b = bike(C.orange); b.position.set(4.2 + i * 0.78, 0.05, -2.8); scene.add(b); }
+box(3.4, 0.12, 0.12, C.dark, 5.3, 0.6, -3.7);
+blockRects.push({ x0: 3.8, x1: 7.0, z0: -3.8, z1: -2.1 });
+mailbox(-7.2, -1.2); trashCan(7.2, 4.8);
+lamp(-7.8, 0.5); lamp(7.8, 0.5); lamp(-7.8, -6.8);
+tree(-7.4, 6.6); tree(7.6, -6.6, 0.95);
+
+// 櫻花公園
+const court = box(8.4, 0.05, 5.2, 0x4f7a55, -24, 0.07, 1); court.castShadow = false;
+box(8.4, 0.02, 0.08, C.white, -24, 0.11, -1.5); box(8.4, 0.02, 0.08, C.white, -24, 0.11, 3.5);
+box(0.08, 0.02, 5.1, C.white, -24, 0.11, 1);
+const cRing = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.04, 4, 32), mat(C.white));
+cRing.rotation.x = Math.PI / 2; cRing.position.set(-24, 0.11, 1); scene.add(cRing);
+for (const gx of [-28.2, -19.8]) {
+  box(0.08, 1, 0.08, C.white, gx, 0.5, 0); box(0.08, 1, 0.08, C.white, gx, 0.5, 2); box(0.08, 0.08, 2, C.white, gx, 1, 1);
+}
+[[-29.8, -5.2], [-29.8, 7.2], [-18.2, -5.2], [-26.5, -5.6], [-21.2, 7.4], [-30.2, 1.5], [-17.8, 7.2]].forEach(([x, z]) => sakura(x, z, 0.9 + Math.random() * 0.35));
+bench(-24, 7.0, Math.PI); bench(-24, -5.0); lamp(-18.5, -2.5);
+[[-27.5, 7.2, 0xf28fad], [-19.5, -5.6, 0xf2c230], [-30.2, -2.0, 0xf28fad]].forEach(([x, z, c]) => bush(x, z, c));
+
+// 智慧校園
+const school = new THREE.Group(); school.position.set(1, 0, -24.8);
+box(9.6, 3.5, 3.2, 0xf5ebd6, 0, 1.75, 0, school);
+box(10.2, 0.42, 3.8, C.orange, 0, 3.7, 0, school);
+for (let i = -3.6; i <= 3.6; i += 1.44) {
+  box(0.82, 0.72, 0.05, 0x9fd1e0, i, 2.55, 1.62, school);
+  box(0.82, 0.72, 0.05, 0x9fd1e0, i, 1.2, 1.62, school);
+}
+box(1.5, 1.65, 0.06, 0x8b6a4e, 0, 0.82, 1.63, school);
+box(3.2, 0.6, 0.1, C.white, 0, 3.1, 1.65, school);
+scene.add(school);
+blockRects.push({ x0: -3.8, x1: 5.8, z0: -26.4, z1: -23.2 });
+cyl(0.05, 0.05, 4.2, C.white, -5.5, 2.1, -21, scene, 6);
+blockCircles.push({ x: -5.5, z: -21, r: 0.15 });
+const flag = box(1.15, 0.72, 0.03, C.accent, -4.9, 3.8, -21);
+tree(8.2, -25.5); tree(-6.4, -25.8); lamp(6.8, -18.2);
+for (let i = 0; i < 5; i++) box(0.12, 0.6, 0.12, C.white, -1.2 + i * 0.6, 0.3, -18.2);
+
+// 海濱步道
+for (let z = -9.2; z <= 7.2; z += 1.1) box(0.1, 0.8, 0.1, C.white, 29.5, 0.4, z);
+box(0.08, 0.08, 16.6, C.white, 29.5, 0.8, -1);
+bench(28.0, -5, -Math.PI / 2); bench(28.0, 1.5, -Math.PI / 2);
+lamp(28.4, -7.8); lamp(28.4, 5.2);
+pine(18.2, -8.5, 1.15); pine(18.4, 6.2, 1.25); pine(21.2, -8.8, 0.9);
+const boats = [];
+[[34.5, -4, 0], [32, 11, 1.2], [-35, -9, 2.2]].forEach(([x, z, r]) => {
+  const g = new THREE.Group(); g.position.set(x, -1, z); g.rotation.y = r;
+  box(3.2, 0.6, 1.35, C.white, 0, 0.1, 0, g);
+  box(3.25, 0.16, 1.4, C.orange, 0, -0.15, 0, g);
+  box(1.1, 0.72, 0.92, 0x9fd1e0, -0.3, 0.75, 0, g);
+  scene.add(g); boats.push(g);
+});
+
+// 鄉村市集
+const awningTex = canvasTex(g => {
+  for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#ffffff' : '#e0533c'; g.fillRect(i * 16, 0, 16, 128); }
+}, 1, 1);
+function stall(x, z, goods) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  box(1.9, 0.82, 0.95, 0xb07d52, 0, 0.41, 0, g);
+  for (const sx of [-0.88, 0.88]) for (const sz of [-0.42, 0.42]) box(0.07, 2.05, 0.07, C.dark, sx, 1.02, sz, g);
+  const aw = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 1.35), new THREE.MeshLambertMaterial({ map: awningTex }));
+  aw.position.set(0, 2.1, 0.1); aw.rotation.x = 0.18; aw.castShadow = true; g.add(aw);
+  for (let i = 0; i < 5; i++) ball(0.14, goods[i % goods.length], -0.6 + i * 0.3, 0.94, 0.15, g, 0);
+  scene.add(g);
+  blockRects.push({ x0: x - 1.0, x1: x + 1.0, z0: z - 0.55, z1: z + 0.55 });
+}
+function house(x, z, wall, roof) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  box(2.8, 2.1, 2.3, wall, 0, 1.05, 0, g);
+  const rg = new THREE.CylinderGeometry(1.6, 1.6, 3.2, 3); rg.rotateY(Math.PI / 2); rg.rotateZ(Math.PI / 2);
+  const r = new THREE.Mesh(rg, mat(roof)); r.scale.set(1, 0.62, 1); r.position.y = 2.55; r.castShadow = true; g.add(r);
+  box(0.62, 1.05, 0.05, 0x8b6a4e, 0.55, 0.52, 1.16, g);
+  box(0.62, 0.52, 0.05, 0x9fd1e0, -0.6, 1.25, 1.16, g);
+  scene.add(g);
+  blockRects.push({ x0: x - 1.4, x1: x + 1.4, z0: z - 1.15, z1: z + 1.15 });
+}
+house(-5.2, 24.8, 0xf8ebd0, 0xd9483b);
+house(-1.8, 25.0, 0xdcecf2, C.orange);
+stall(1.2, 22.8, [0xd9483b, 0xf2c230]);
+stall(4.3, 22.8, [0x7bb05d, 0xf29bb5]);
+cyl(0.65, 0.65, 0.08, C.white, -4.8, 0.72, 19.5, scene, 12);
+cyl(0.06, 0.06, 1.8, C.dark, -4.8, 0.9, 19.5, scene, 8);
+cyl(0.04, 1.25, 0.45, C.orange, -4.8, 1.95, 19.5, scene, 10);
+blockCircles.push({ x: -4.8, z: 19.5, r: 0.7 });
+sakura(-6.8, 17.6, 0.85); lamp(6.8, 17.6); trashCan(6.8, 24.5);
+
+// ---------------- 11. 旋轉收集金幣 ----------------
+const coins = [];
+const coinCoords = [
+  [-2, 1.5], [6.2, 3.2], [-24, 1], [-14, 1.5],
+  [2, -14], [24, -4], [3.5, 14], [-2.5, 20.5]
+];
+coinCoords.forEach(([x, z], idx) => {
+  const m = cyl(0.32, 0.32, 0.09, C.yellow, x, 0.7, z, scene, 14);
+  m.rotation.z = Math.PI / 2;
+  coins.push({ mesh: m, x, z, taken: false, phase: idx * 0.8 });
+});
+
+// ---------------- 12. 公仔與隨行寵物建模 ----------------
+function makeChibi({ skin = 0xf3cba5, shirt = 0x5b8def, pants = 0x4a5370, hair = 0x3b2a20, helmet = null, bag = null, ponytail = null, glasses = false } = {}) {
+  const g = new THREE.Group();
+  const limb = (r, len, color, x, y) => {
+    const pivot = new THREE.Group(); pivot.position.set(x, y, 0);
+    const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 3, 8), mat(color));
+    m.position.y = -len / 2 - r * 0.5; m.castShadow = true;
+    pivot.add(m); g.add(pivot);
+    return pivot;
+  };
+  const legL = limb(0.11, 0.3, pants, -0.13, 0.5);
+  const legR = limb(0.11, 0.3, pants, 0.13, 0.5);
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.3, 4, 10), mat(shirt));
+  body.position.y = 0.8; body.castShadow = true; g.add(body);
+  const armL = limb(0.08, 0.28, shirt, -0.36, 1.0);
+  const armR = limb(0.08, 0.28, shirt, 0.36, 1.0);
+  const head = new THREE.Group(); head.position.y = 1.45; g.add(head);
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 12), mat(skin));
+  face.castShadow = true; head.add(face);
+  for (const s of [-0.13, 0.13]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), mat(0x2b2b30));
+    eye.position.set(s, 0.02, 0.35); head.add(eye);
+  }
+  if (helmet) {
+    const hm = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(helmet));
+    hm.position.y = 0.04; hm.castShadow = true; head.add(hm);
+    box(0.5, 0.05, 0.2, helmet, 0, 0.06, 0.4, head);
+  } else {
+    const hr = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2.2), mat(hair));
+    hr.position.set(0, 0.03, -0.03); hr.rotation.x = -0.25; hr.castShadow = true; head.add(hr);
+  }
+  if (bag) box(0.4, 0.45, 0.2, bag, 0, 0.85, -0.3, g);
+  let tail = null;
+  if (ponytail) {
+    tail = new THREE.Group(); tail.position.set(0, 0.05, -0.36); head.add(tail);
+    ball(0.13, ponytail, 0, 0, -0.06, tail);
+    ball(0.15, ponytail, 0, -0.2, -0.12, tail);
+    ball(0.1, ponytail, 0, -0.38, -0.12, tail);
+    box(0.2, 0.06, 0.06, 0xd9483b, 0, 0.02, -0.02, tail);
+  }
+  if (glasses) for (const s of [-0.13, 0.13]) {
+    const r = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.018, 4, 12), mat(0x2b2b30));
+    r.position.set(s, 0.02, 0.37); head.add(r);
+  }
+  g.userData = { legL, legR, armL, armR, body, head, tail, phase: Math.random() * 6 };
+  scene.add(g);
+  return g;
+}
+
+function makePet(type) {
+  if (type === 'none') return null;
+  const g = new THREE.Group();
+  const cfg = {
+    dog:    { fur: 0xd9a066, sub: 0x8b5a33, earH: 0.16, tailLen: 0.28 },
+    rabbit: { fur: 0xf7f5f2, sub: 0xf5a9bc, earH: 0.42, tailLen: 0.12 },
+    cat:    { fur: 0xf29b38, sub: 0xffffff, earH: 0.15, tailLen: 0.36 },
+  }[type];
+
+  box(0.32, 0.28, 0.56, cfg.fur, 0, 0.44, 0, g);
+  const head = new THREE.Group(); head.position.set(0, 0.70, 0.32); g.add(head);
+  box(0.30, 0.28, 0.28, cfg.fur, 0, 0, 0, head);
+  box(0.14, 0.10, 0.12, cfg.sub, 0, -0.05, 0.18, head);
+  box(0.06, 0.05, 0.04, 0x2b2b30, 0, -0.01, 0.24, head);
+  for (const s of [-1, 1]) {
+    box(0.08, cfg.earH, 0.06, cfg.fur, s * 0.11, 0.14 + cfg.earH / 2, -0.02, head);
+    if (type === 'rabbit') box(0.04, cfg.earH * 0.7, 0.02, cfg.sub, s * 0.11, 0.14 + cfg.earH / 2, 0.02, head);
+    box(0.045, 0.045, 0.03, 0x2b2b30, s * 0.08, 0.04, 0.15, head);
+  }
+  const legs = [];
+  for (const [x, z] of [[-0.1, 0.18], [0.1, 0.18], [-0.1, -0.18], [0.1, -0.18]]) {
+    const pv = new THREE.Group(); pv.position.set(x, 0.34, z); g.add(pv);
+    box(0.08, 0.28, 0.08, cfg.fur, 0, -0.14, 0, pv); legs.push(pv);
+  }
+  const tail = new THREE.Group(); tail.position.set(0, 0.54, -0.28); g.add(tail);
+  if (type === 'rabbit') ball(0.11, 0xffffff, 0, 0.04, -0.06, tail, 0);
+  else {
+    const tm = box(0.06, 0.06, cfg.tailLen, cfg.sub, 0, 0.1, -cfg.tailLen / 2, tail);
+    tm.rotation.x = -0.65;
+  }
+  g.userData = { legs, tail, head, type, phase: 0 };
+  scene.add(g);
+  return g;
+}
+
+function animateWalk(ch, amount, dt) {
+  const u = ch.userData;
+  u.phase += dt * 10 * amount;
+  const sw = Math.sin(u.phase) * 0.7 * amount;
+  u.legL.rotation.x = sw; u.legR.rotation.x = -sw;
+  u.armL.rotation.x = -sw; u.armR.rotation.x = sw;
+  const bob = Math.abs(Math.sin(u.phase)) * 0.06 * amount;
+  u.body.position.y = 0.8 + bob; u.head.position.y = 1.45 + bob;
+  if (u.tail) u.tail.rotation.z = Math.sin(u.phase) * 0.35 * amount;
+}
+const faceTo = (ch, dx, dz) => { ch.rotation.y = Math.atan2(dx, dz); };
+
+// ---------------- 13. 玩家自訂設定 ----------------
+const STYLE_MAP = {
+  nature: { shirt: 0x4caf6a, pants: 0x2f3a5c, bag: C.yellow },
+  travel: { shirt: 0x2b7de9, pants: 0x374151, bag: C.orange },
+  tech:   { shirt: 0x222630, pants: 0x111827, bag: 0x00d2ff },
+  sakura: { shirt: 0xf28fad, pants: 0x4a5370, bag: C.white },
+};
+
+const playerConfig = {
+  name: '探險家小安',
+  petType: 'rabbit',
+  style: 'nature',
+  hairStyle: 'ponytail',
+  hairColor: 0x4a2e1b,
+};
+
+let player = null;
+let pet = null;
+
+function rebuildPlayerAndPet() {
+  const oldPos = player ? player.position.clone() : new THREE.Vector3(0, 0.06, 1.5);
+  const oldRot = player ? player.rotation.y : 0;
+  if (player) scene.remove(player);
+  if (pet) { scene.remove(pet); pet = null; }
+
+  const st = STYLE_MAP[playerConfig.style];
+  const hc = Number(playerConfig.hairColor);
+  player = makeChibi({
+    shirt: st.shirt,
+    pants: st.pants,
+    hair: hc,
+    bag: st.bag,
+    helmet: playerConfig.hairStyle === 'helmet' ? 0xd9483b : null,
+    ponytail: playerConfig.hairStyle === 'ponytail' ? hc : null,
+  });
+  player.position.copy(oldPos);
+  player.rotation.y = oldRot;
+
+  pet = makePet(playerConfig.petType);
+  if (pet) pet.position.set(oldPos.x, 0.06, oldPos.z + 1.4);
+}
+rebuildPlayerAndPet();
+
+const playerRing = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 24), new THREE.MeshBasicMaterial({ color: C.accent, transparent: true, opacity: 0.85 }));
+playerRing.rotation.x = -Math.PI / 2; scene.add(playerRing);
+
+// ---------------- 14. 常駐 NPC、路人與騎士 ----------------
+const teacher = makeChibi({ shirt: 0xffffff, pants: 0x8a8a92, hair: 0x4a3a30, glasses: true });
+teacher.position.set(-2.4, 0.06, -19.2); teacher.rotation.y = 0.4;
+blockCircles.push({ x: -2.4, z: -19.2, r: 0.35 });
+
+const coastGuard = makeChibi({ shirt: 0xffffff, pants: 0x2f3a5c, helmet: 0xd9483b, bag: C.accent });
+coastGuard.position.set(25.2, 0.06, -3.5); coastGuard.rotation.y = -1.2;
+blockCircles.push({ x: 25.2, z: -3.5, r: 0.35 });
+
+const walkers = [
+  { look: { shirt: 0x7ab07a, hair: 0x6b4a2b }, path: [[-27.5, -2.5], [-20.5, -2.5], [-20.5, 4.5], [-27.5, 4.5]], speed: 1.7 },
+  { look: { shirt: 0xf2c230, hair: 0x2b1d14, ponytail: 0x2b1d14 }, path: [[-28.5, 6.0], [-19.5, 6.0]], speed: 2.1 },
+  { look: { shirt: 0xd9d9d9, hair: 0xdddddd, pants: 0x777777 }, path: [[26.2, -7.5], [26.2, 5.0]], speed: 1.0 },
+  { look: { shirt: 0xf2a6b8, helmet: C.yellow, bag: C.orange }, path: [[-1, -20], [5, -20]], speed: 1.4 },
+].map(w => ({ ...w, ch: makeChibi(w.look), i: 0 }));
+walkers.forEach(w => w.ch.position.set(w.path[0][0], 0.06, w.path[0][1]));
+
+const cyclist = new THREE.Group(); scene.add(cyclist);
+cyclist.add(bike(C.accent));
+const rider = makeChibi({ shirt: 0x4caf6a, helmet: C.yellow });
+scene.remove(rider); cyclist.add(rider);
+rider.position.set(0, 0.35, -0.15);
+rider.userData.armL.rotation.x = rider.userData.armR.rotation.x = -1.1;
+const cyclePath = [[-1.5, 1.5], [6.2, 1.5], [6.2, 6.0], [-1.5, 6.0]];
+let cycleIdx = 0;
+cyclist.position.set(cyclePath[0][0], 0.06, cyclePath[0][1]);
+
+// ---------------- 15. 六大關卡光圈與題庫 ----------------
+const spots = [
+  { id: 1, name: '科技城中樞', x: -1.8, z: 5.8 },
+  { id: 2, name: '智慧單車站', x: 5.2,  z: -0.8 },
+  { id: 3, name: '櫻花運動場', x: -24,  z: 4.8 },
+  { id: 4, name: '海濱觀景台', x: 23.5, z: 2.5 },
+  { id: 5, name: '數位校門口', x: 1.5,  z: -19.2 },
+  { id: 6, name: '鄉村農夫市集', x: 2.8, z: 19.2 },
+];
+spots.forEach(s => {
+  const r = new THREE.Mesh(new THREE.RingGeometry(0.75, 1.02, 32), new THREE.MeshBasicMaterial({ color: C.orange, transparent: true, opacity: 0.92 }));
+  r.rotation.x = -Math.PI / 2; r.position.set(s.x, 0.09, s.z);
+  scene.add(r);
+  s.ring = r; s.state = null; s.first = null; s.wasIn = false;
+});
+
+const QUIZ = {
+  1: { q: '在這座 3D 島嶼小鎮中，為什麼遠處與近處的建築看起來一樣大，像精緻的桌上微縮模型？',
+       opts: ['使用了正交攝影機（OrthographicCamera）', '把所有遠處的房子都放大了兩倍', '關閉了瀏覽器的 WebGL 硬體加速', '只使用了 2D 圖片貼在背景上'],
+       exp: '正交攝影機（OrthographicCamera）沒有近大遠小的透視變形，非常適合製作等角視角（Isometric）的微縮城市地圖！' },
+  2: { q: '本作品同時載入了 Three.js 與 p5.js 兩個函式庫，它們在畫面中是如何分工合作的？',
+       opts: ['Three.js 負責底層 3D 場景與光影，p5.js 負責上層 2D 標籤與鍵盤滑鼠互動', 'p5.js 負責畫 3D 圓柱與陰影，Three.js 只負責播放音效', '兩個函式庫輪流每隔一秒切換顯示畫面', 'Three.js 只負責畫水面，陸地全部由 HTML 表格繪製'],
+       exp: '底層 WebGL 畫布由 Three.js 渲染立體模型與陰影；上層透明畫布由 p5.js 繪製文字膠囊標籤並偵測玩家輸入。' },
+  3: { q: '為什麼大頭公仔走路時，手腳可以自然地以肩膀和髖部為中心前後擺動？',
+       opts: ['先建立關節群組（Group 當支點），再把手腳模型掛在關節底下旋轉', '每一幀都把舊的手腳刪掉重新建立新的方塊', '載入了外部的 MP4 走路影片貼在角色身上', '直接把整個角色的身體上下拉長縮短'],
+       exp: '利用 Three.js 的 Group 作為關節軸心（Pivot），搭配 Math.sin() 讓左右手腳正負交替旋轉，就能做出流暢的行走動畫。' },
+  4: { q: '當我們用滑鼠點擊島嶼地面時，程式是如何精準算出角色應該走向 3D 世界中的哪個座標？',
+       opts: ['透過 Raycaster（射線偵測）從攝影機穿過滑鼠位置與地面平面求交點', '隨機挑選一個離角色最近的橋樑座標', '直接把螢幕的像素 X、Y 當成 3D 座標使用', '只能點擊預設好的六個橘色圓圈，不能點一般地面'],
+       exp: 'Raycasting（射線投射）會從鏡頭經過滑鼠指標射出一條虛擬射線，計算與地面平面的交點，再檢查是否在可行走範圍內。' },
+  5: { q: '為了避免玩家在上下拖曳旋轉視角時，鏡頭鑽到島嶼水平面底下看到穿幫畫面，應該怎麼設計？',
+       opts: ['用 constrain 限制攝影機的最低俯角（例如保持在 18°～72° 之間）', '把攝影機永遠鎖死完全禁止任何旋轉與縮放', '把水面塗成全黑色讓玩家看不見', '刪除所有平台的側面與橋墩'],
+       exp: '設定俯仰角的上下界限（如最低 18°），既能讓玩家自由環繞觀賞 3D 島嶼，又不會穿幫看到平台底部的虛空！' },
+  6: { q: '將完成後的單一檔案 3D 島嶼作品部署到 GitHub Pages 分享給大家遊玩時，下列哪個步驟正確？',
+       opts: ['主檔案命名為 index.html，將儲存庫設為 Public 並在 Pages 選擇 main 分支儲存', '必須把儲存庫維持 Private 私人狀態才能免費開啟網頁', '檔名必須改成 threejs_game.docx 才能直接執行', '每次修改後都必須重新申請一個全新的 GitHub 帳號'],
+       exp: '公開（Public）儲存庫搭配根目錄的 index.html，到 Settings → Pages 將 Branch 設為 main，就能產生專屬的線上互動網址！' },
+};
+
+const HELPERS = [
+  { name: '鏡頭小哥', role: '微縮模型攝影師', q: 1, x: -4.2, z: 6.2, color: '#2b7de9', look: { shirt: 0x2b7de9, hair: 0x2b1d14, pants: 0x3f4a66 },
+    tips: ['觀察看看：遠方的校舍跟眼前的巴士是不是一樣沒有透視變形？', '這種像桌上模型的效果，靠的是「正交攝影機（OrthographicCamera）」！'] },
+  { name: '架構姐姐', role: '雙引擎整合師', q: 2, x: 7.0, z: -0.5, color: '#c2577a', look: { shirt: 0xf29bb5, hair: 0x5a3a2a, pants: 0x4a5370, ponytail: 0x5a3a2a },
+    tips: ['Three.js 擅長畫 3D 立體幾何、燈光與柔和陰影', 'p5.js 鋪在最上層透明畫布，負責畫頭頂標籤與讀取鍵盤滑鼠！'] },
+  { name: '動畫博士', role: '骨架關節達人', q: 3, x: -21.2, z: 5.8, color: '#5c6475', look: { shirt: 0xf4f4f4, hair: 0x9a9a9a, pants: 0x4b4b55, glasses: true },
+    tips: ['手腳如果沒有掛在肩膀與髖部的「關節群組（Group）」上，轉動時就會飛出去', '搭配 Math.sin() 就能讓左右手腳交替前後擺動！'] },
+  { name: '射線阿伯', role: '空間定位嚮導', q: 4, x: 21.2, z: 4.2, color: '#4caf6a', look: { shirt: 0x7ab07a, hair: 0xdddddd, pants: 0x777777, helmet: 0xf2c230 },
+    tips: ['2D 螢幕只有 X、Y，要換算成 3D 地面的點需要靠「射線偵測（Raycaster）」', '從攝影機射出一條線打到地面平面，就能算出目標座標！'] },
+  { name: '視角老師', role: '防穿幫守護者', q: 5, teacher: true, color: '#26262c',
+    tips: ['試著上下拖曳滑鼠看看，是不是轉到接近水平前就會優雅停住？', '用 constrain 把攝影機俯角限制在 18°～72°，就永遠不會看到島嶼底下穿幫！'] },
+  { name: '雲端店長', role: 'GitHub 部署顧問', q: 6, x: 5.5, z: 19.0, color: '#e0533c', look: { shirt: 0x24292f, hair: 0x3b2a20, pants: 0x3f4a66, bag: 0x4caf6a },
+    tips: ['網站首頁一定要命名為 index.html，且 GitHub 專案要設為 Public 公開', '到 Settings → Pages 把 Branch 選為 main 按 Save 就能上線！'] },
+];
+
+HELPERS.forEach(h => {
+  if (h.teacher) { h.ch = teacher; h.x = teacher.position.x; h.z = teacher.position.z; return; }
+  h.ch = makeChibi(h.look); h.ch.position.set(h.x, 0.06, h.z); h.ch.rotation.y = Math.random() * 6;
+  blockCircles.push({ x: h.x, z: h.z, r: 0.35 });
+});
+
+// ---------------- 16. UI 互動管理 ----------------
+const $ = id => document.getElementById(id);
+const stOf = id => spots.find(s => s.id === id);
+
+function toggleNightMode() {
+  isNight = !isNight;
+  scene.background.set(isNight ? C.skyNight : C.skyDay);
+  waterMat.color.set(isNight ? C.waterNight : C.waterDay);
+  hemiLight.intensity = isNight ? 0.45 : 1.5;
+  sun.intensity = isNight ? 0.35 : 1.7;
+  lampMaterials.forEach(m => m.emissive.set(isNight ? 0xffbb44 : 0x000000));
+  lampLights.forEach(l => { l.intensity = isNight ? 2.2 : 0; });
+  $('nightBtn').textContent = isNight ? '☀️ 白天模式' : '🌙 夜晚模式';
+}
+
+const UI = {
+  open: () => document.querySelector('.mask.on') !== null,
+  cur: null,
+  refresh() {
+    const answered = spots.filter(s => s.first !== null).length;
+    const firstOk = spots.filter(s => s.first === true).length;
+    const coinCnt = coins.filter(c => c.taken).length;
+    $('stat').textContent = `答題 ${answered} / 6　首次答對 ${firstOk} 題　🪙 金幣 ${coinCnt} / ${coins.length}`;
+    $('dots').innerHTML = spots.map(s => `<span class="${s.state || ''}">${s.state === 'ok' ? '✓' : s.state === 'bad' ? '✗' : s.id}</span>`).join('');
+    spots.forEach(s => s.ring.material.color.set(s.state === 'ok' ? 0x4caf6a : s.state === 'bad' ? 0xd9483b : C.orange));
+  },
+  quiz(s) {
+    const Q = QUIZ[s.id]; UI.cur = s;
+    const order = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+    $('quizCard').innerHTML = `<span class="tag">第 ${s.id} 關・${s.name}</span>${s.state === 'bad' ? ' <span class="tag" style="background:#d9483b">再挑戰一次</span>' : ''}
+      <h2>${Q.q}</h2>${order.map((o, i) => `<button class="opt" data-o="${o}"><i>${i + 1}</i><span>${Q.opts[o]}</span></button>`).join('')}
+      <div class="fb" id="fb"></div><button class="btn" id="qClose">稍後再答</button>`;
+    $('quizCard').querySelectorAll('.opt').forEach(b => b.onclick = () => UI.answer(+b.dataset.o));
+    $('qClose').onclick = () => UI.close('mQuiz');
+    $('mQuiz').classList.add('on');
+  },
+  answer(o) {
+    const s = UI.cur, Q = QUIZ[s.id], ok = o === 0, h = HELPERS.find(x => x.q === s.id);
+    if (!s.quizBusy) {
+      s.quizBusy = true;
+      if (s.first === null) s.first = ok;
+      s.state = ok ? 'ok' : 'bad';
+      $('quizCard').querySelectorAll('.opt').forEach(b => {
+        b.disabled = true;
+        const v = +b.dataset.o;
+        if (ok && v === 0) b.classList.add('ok');
+        else if (!ok && v === o) b.classList.add('bad');
+      });
+      const fb = $('fb'); fb.className = 'fb ' + (ok ? 'ok' : 'bad');
+      fb.innerHTML = ok
+        ? `✅ <b>太棒了！</b>${Q.exp}`
+        : `🤔 <b>再想一下！</b>可以去旁邊找 💡<b>${h.name}</b>（${h.role}）看重點提示，走出去再進來就能重答。`;
+      $('qClose').textContent = '繼續探索';
+      s.quizBusy = false; UI.cur = ok ? null : s;
+      UI.refresh();
+    }
+  },
+  close(id) {
+    $(id).classList.remove('on');
+    if (id === 'mQuiz' && spots.every(s => s.state === 'ok')) setTimeout(UI.end, 400);
+  },
+  help() {
+    $('helpCard').innerHTML = `<span class="tag" style="background:#f2c230;color:#26262c">💡 島嶼嚮導</span><h2>六大關卡提示角色</h2>` +
+      HELPERS.map((h, i) => {
+        const s = stOf(h.q);
+        return `<div class="hcard"><div class="av" style="background:${h.color}">${h.name[0]}</div>
+          <div><b>${h.name}</b> <em>${h.role}</em><small>駐守「${s.name}」・負責第 ${h.q} 關 ${s.state === 'ok' ? '✓' : s.state === 'bad' ? '（待重答）' : ''}</small>
+          <ul>${h.tips.map(t => `<li>${t}</li>`).join('')}</ul></div><button class="go" data-i="${i}">自動前往</button></div>`;
+      }).join('') + `<button class="btn" id="hClose">關閉</button>`;
+    $('helpCard').querySelectorAll('.go').forEach(b => b.onclick = () => {
+      const h = HELPERS[+b.dataset.i]; moveTo = { x: h.x + 0.9, z: h.z + 0.9 }; UI.close('mHelp');
+    });
+    $('hClose').onclick = () => UI.close('mHelp');
+    $('mHelp').classList.add('on');
+  },
+  near(h) {
+    const el = $('near'), show = h && !UI.open();
+    el.style.display = show ? 'block' : 'none';
+    $('tipline').style.display = show ? 'none' : '';
+    if (!show || el.dataset.h === h.name) return;
+    el.dataset.h = h.name;
+    el.innerHTML = `<div class="who"><div class="av" style="background:${h.color}">${h.name[0]}</div><b>${h.name}</b><em>${h.role}</em>
+      <span style="margin-left:auto;font-size:12px;color:#7b7b86">第 ${h.q} 關解題線索</span></div><ul>${h.tips.map(t => `<li>${t}</li>`).join('')}</ul>`;
+  },
+  end() {
+    const firstOk = spots.filter(s => s.first === true).length;
+    const coinCnt = coins.filter(c => c.taken).length;
+    $('endCard').innerHTML = `<span class="tag">恭喜通關！</span><h2>🎉 ${playerConfig.name} 完成了五島大冒險！</h2>
+      <div style="font-size:14px;color:#5c6475">首次作答即答對題數（收集金幣：${coinCnt} / ${coins.length}）</div>
+      <div class="big">${firstOk} / 6</div>` +
+      spots.map(s => `<div class="row"><span>第 ${s.id} 關・${s.name}</span><span>${s.first ? '✅ 一次答對' : '🔁 看提示後過關'}</span></div>`).join('') +
+      `<button class="btn primary" id="again">重新挑戰</button>`;
+    $('again').onclick = () => {
+      spots.forEach(s => { s.state = null; s.first = null; });
+      coins.forEach(c => { c.taken = false; c.mesh.visible = true; });
+      player.position.set(0, 0.06, 1.5); moveTo = null;
+      UI.refresh(); UI.close('mEnd');
+    };
+    $('mEnd').classList.add('on');
+  },
+};
+
+$('startBtn').onclick = () => UI.close('mIntro');
+$('introCharBtn').onclick = () => { UI.close('mIntro'); $('mChar').classList.add('on'); };
+$('charBtn').onclick = () => $('mChar').classList.add('on');
+$('closeCharBtn').onclick = () => UI.close('mChar');
+$('saveCharBtn').onclick = () => {
+  playerConfig.name = $('inpName').value.trim() || '島嶼探險家';
+  playerConfig.petType = $('selPet').value;
+  playerConfig.style = $('selStyle').value;
+  playerConfig.hairStyle = $('selHairStyle').value;
+  playerConfig.hairColor = $('selHairColor').value;
+  rebuildPlayerAndPet();
+  UI.close('mChar');
+};
+$('nightBtn').onclick = toggleNightMode;
+$('helpBtn').onclick = () => UI.help();
+
+addEventListener('keydown', e => {
+  if ($('mQuiz').classList.contains('on')) {
+    const n = +e.key; const btns = [...$('quizCard').querySelectorAll('.opt')];
+    if (n >= 1 && n <= 4 && btns[n - 1] && !btns[n - 1].disabled) btns[n - 1].click();
+    if (e.key === 'Enter' || e.key === 'Escape') $('qClose').click();
+    return;
+  }
+  if ($('mChar').classList.contains('on')) {
+    if (e.key === 'Escape') UI.close('mChar');
+    return;
+  }
+  if (e.key === 'Enter' && $('mIntro').classList.contains('on')) $('startBtn').click();
+  if (e.key === 'Escape') ['mHelp', 'mIntro'].forEach(id => UI.close(id));
+  if ((e.key === 'h' || e.key === 'H') && !UI.open()) UI.help();
+  if ((e.key === 'n' || e.key === 'N') && !UI.open()) toggleNightMode();
+  if ((e.key === 'c' || e.key === 'C') && !UI.open()) centerLockMode = !centerLockMode;
+});
+UI.refresh();
+
+// ---------------- 17. p5.js 主迴圈與互動 ----------------
+const target = new THREE.Vector3(0, 0, 1.5);
+let moveTo = null;
+const SCREEN_RIGHT = new THREE.Vector3(), SCREEN_UP = new THREE.Vector3();
+
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); fitCamera(); });
+
+new p5((p) => {
+  const FONT = "'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif";
+  const labelHits = [];
+  const ray = new THREE.Raycaster();
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.06);
+
+  p.setup = () => {
+    p.createCanvas(p.windowWidth, p.windowHeight).parent('hud');
+    p.textFont(FONT);
+  };
+  p.windowResized = () => p.resizeCanvas(p.windowWidth, p.windowHeight);
+
+  const toScreen = (x, y, z) => {
+    const v = new THREE.Vector3(x, y, z).project(camera);
+    return { x: (v.x + 1) / 2 * p.width, y: (1 - v.y) / 2 * p.height };
+  };
+
+  let downX = 0, downY = 0, dragging = false, skip = false;
+  const onUI = e => UI.open() || (e && e.target && e.target.closest && e.target.closest('.ui'));
+
+  p.mousePressed = (e) => { skip = onUI(e); downX = p.mouseX; downY = p.mouseY; dragging = false; if (!skip) return false; };
+  p.mouseDragged = () => {
+    if (skip) return;
+    if (Math.hypot(p.mouseX - downX, p.mouseY - downY) > 5) dragging = true;
+    if (!dragging) return false;
+    yawTarget -= (p.mouseX - p.pmouseX) * 0.008;
+    pitchTarget = p.constrain(pitchTarget + (p.mouseY - p.pmouseY) * 0.006, PITCH_MIN, PITCH_MAX);
+    return false;
+  };
+  p.mouseReleased = () => {
+    if (skip) { skip = false; return; }
+    if (dragging) { dragging = false; return false; }
+    const hit = labelHits.find(h => p.mouseX > h.x && p.mouseX < h.x + h.w && p.mouseY > h.y && p.mouseY < h.y + h.h);
+    if (hit) {
+      moveTo = hit.spot ? { x: hit.spot.x, z: hit.spot.z } : { x: hit.helper.x + 0.9, z: hit.helper.z + 0.9 };
+      return false;
+    }
+    ray.setFromCamera(new THREE.Vector2(p.mouseX / p.width * 2 - 1, -(p.mouseY / p.height) * 2 + 1), camera);
+    const pt = new THREE.Vector3();
+    if (ray.ray.intersectPlane(groundPlane, pt) && walkable(pt.x, pt.z)) moveTo = { x: pt.x, z: pt.z };
+    return false;
+  };
+  p.mouseWheel = (e) => { if (onUI(e)) return; zoomTarget = p.constrain(zoomTarget + e.delta * 0.022, 6.5, 48); return false; };
+  p.keyPressed = () => {
+    if (UI.open()) return;
+    if (p.key === 'q' || p.key === 'Q') yawTarget -= Math.PI / 2;
+    if (p.key === 'e' || p.key === 'E') yawTarget += Math.PI / 2;
+    if (p.key === 'r' || p.key === 'R') {
+      yawTarget = YAW0 + Math.round((camYaw - YAW0) / (Math.PI * 2)) * Math.PI * 2;
+      pitchTarget = PITCH0; zoomTarget = 25; centerLockMode = false;
+    }
+    if ([32, 37, 38, 39, 40].includes(p.keyCode)) return false;
+  };
+
+  function tryMove(ch, dx, dz) {
+    const x = ch.position.x, z = ch.position.z;
+    if (isFree(x + dx, z + dz)) { ch.position.x += dx; ch.position.z += dz; return true; }
+    if (isFree(x + dx, z)) { ch.position.x += dx; return true; }
+    if (isFree(x, z + dz)) { ch.position.z += dz; return true; }
+    return false;
+  }
+
+  function update(dt, t) {
+    let kx = 0, ky = 0;
+    if (p.keyIsDown(p.LEFT_ARROW) || p.keyIsDown(65)) kx -= 1;
+    if (p.keyIsDown(p.RIGHT_ARROW) || p.keyIsDown(68)) kx += 1;
+    if (p.keyIsDown(p.UP_ARROW) || p.keyIsDown(87)) ky += 1;
+    if (p.keyIsDown(p.DOWN_ARROW) || p.keyIsDown(83)) ky -= 1;
+    if (p.keyIsDown(187) || p.keyIsDown(107) || p.keyIsDown(61)) zoomTarget = Math.max(6.5, zoomTarget - 18 * dt);
+    if (p.keyIsDown(189) || p.keyIsDown(109) || p.keyIsDown(173)) zoomTarget = Math.min(48, zoomTarget + 18 * dt);
+
+    SCREEN_RIGHT.set(Math.cos(camYaw), 0, -Math.sin(camYaw));
+    SCREEN_UP.set(-Math.sin(camYaw), 0, -Math.cos(camYaw));
+    if (UI.open()) { kx = ky = 0; moveTo = null; }
+
+    let mx = 0, mz = 0;
+    if (kx || ky) {
+      moveTo = null;
+      mx = SCREEN_RIGHT.x * kx + SCREEN_UP.x * ky;
+      mz = SCREEN_RIGHT.z * kx + SCREEN_UP.z * ky;
+    } else if (moveTo) {
+      mx = moveTo.x - player.position.x; mz = moveTo.z - player.position.z;
+      if (Math.hypot(mx, mz) < 0.16) { moveTo = null; mx = mz = 0; }
+    }
+
+    const len = Math.hypot(mx, mz);
+    if (len > 0) {
+      const step = 5.4 * dt;
+      const ok = tryMove(player, mx / len * step, mz / len * step);
+      if (!ok) moveTo = null;
+      faceTo(player, mx, mz);
+      animateWalk(player, 1, dt);
+    } else animateWalk(player, 0, dt);
+    playerRing.position.set(player.position.x, 0.1, player.position.z);
+
+    if (pet) {
+      const back = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
+      const gx = player.position.x - back.x * 1.45, gz = player.position.z - back.z * 1.45;
+      const ddx = gx - pet.position.x, ddz = gz - pet.position.z, dd = Math.hypot(ddx, ddz);
+      const pu = pet.userData;
+      if (dd > 0.25) {
+        const sp = Math.min(6.2, 2.2 + dd * 3) * dt;
+        tryMove(pet, ddx / dd * Math.min(sp, dd), ddz / dd * Math.min(sp, dd));
+        faceTo(pet, ddx, ddz);
+        pu.phase += dt * 15;
+      }
+      const run = dd > 0.25 ? 1 : 0;
+      pu.legs.forEach((l, i) => l.rotation.x = Math.sin(pu.phase + (i % 3 ? Math.PI : 0)) * 0.65 * run);
+      pet.position.y = 0.06 + (pu.type === 'rabbit' && run ? Math.abs(Math.sin(pu.phase)) * 0.22 : 0);
+      pu.tail.rotation.y = Math.sin(t * (run ? 18 : 8)) * 0.55;
+    }
+
+    teacher.userData.armL.rotation.z = -2.5 - Math.sin(t * 7) * 0.35;
+    coastGuard.userData.armR.rotation.z = 2.4 + Math.sin(t * 5) * 0.3;
+    walkers.forEach(w => {
+      const [tx, tz] = w.path[w.i];
+      const dx = tx - w.ch.position.x, dz = tz - w.ch.position.z, d = Math.hypot(dx, dz);
+      if (d < 0.12) { w.i = (w.i + 1) % w.path.length; return; }
+      w.ch.position.x += dx / d * w.speed * dt; w.ch.position.z += dz / d * w.speed * dt;
+      faceTo(w.ch, dx, dz); animateWalk(w.ch, w.speed / 2, dt);
+    });
+
+    const [cx, cz] = cyclePath[cycleIdx];
+    const cdx = cx - cyclist.position.x, cdz = cz - cyclist.position.z, cd = Math.hypot(cdx, cdz);
+    if (cd < 0.12) cycleIdx = (cycleIdx + 1) % cyclePath.length;
+    else {
+      cyclist.position.x += cdx / cd * 3.2 * dt; cyclist.position.z += cdz / cd * 3.2 * dt;
+      let diff = Math.atan2(cdx, cdz) - cyclist.rotation.y;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      cyclist.rotation.y += diff * Math.min(1, dt * 6);
+    }
+    rider.userData.legL.rotation.x = -0.9 + Math.sin(t * 8) * 0.5;
+    rider.userData.legR.rotation.x = -0.9 - Math.sin(t * 8) * 0.5;
+
+    coins.forEach(c => {
+      if (c.taken) return;
+      c.mesh.rotation.y = t * 3 + c.phase;
+      c.mesh.position.y = 0.68 + Math.sin(t * 4 + c.phase) * 0.1;
+      if (Math.hypot(c.x - player.position.x, c.z - player.position.z) < 0.95) {
+        c.taken = true; c.mesh.visible = false; UI.refresh();
+      }
+    });
+
+    spots.forEach(s => {
+      const inside = Math.hypot(s.x - player.position.x, s.z - player.position.z) < 1.35;
+      if (inside && !s.wasIn && s.state !== 'ok' && !UI.open()) UI.quiz(s);
+      s.wasIn = inside;
+      s.ring.scale.setScalar(s.state === 'ok' ? 1 : 1 + Math.sin(t * 3 + s.id) * 0.08);
+    });
+
+    let nearH = null;
+    HELPERS.forEach(h => {
+      const dx = player.position.x - h.x, dz = player.position.z - h.z, d = Math.hypot(dx, dz);
+      if (d < 2.5) { nearH = h; h.ch.rotation.y += (Math.atan2(dx, dz) - h.ch.rotation.y) * Math.min(1, dt * 6); }
+      if (!h.teacher) h.ch.userData.armL.rotation.z = d < 2.5 ? -2.5 - Math.sin(t * 7) * 0.35 : 0;
+    });
+    UI.near(nearH);
+
+    holoRing.rotation.z = t * 1.5;
+    holoRing.position.y = 4.8 + Math.sin(t * 2.5) * 0.15;
+    flag.rotation.y = Math.sin(t * 2.2) * 0.25;
+    boats.forEach((b, i) => { b.position.y = -1 + Math.sin(t * 1.5 + i) * 0.06; b.rotation.z = Math.sin(t + i) * 0.04; });
+    ripples.forEach(r => { r.position.x += dt * 0.45; if (r.position.x > 55) r.position.x = -55; r.scale.x = 0.7 + 0.3 * Math.sin(t + r.userData.phase); });
+
+    const focusGoal = centerLockMode ? new THREE.Vector3(0, 0, 0) : new THREE.Vector3(player.position.x, 0, player.position.z);
+    target.lerp(focusGoal, 1 - Math.pow(0.02, dt));
+    const k = 1 - Math.pow(0.004, dt);
+    camYaw += (yawTarget - camYaw) * k;
+    camPitch += (pitchTarget - camPitch) * k;
+    viewSize += (zoomTarget - viewSize) * k;
+    fitCamera();
+    camera.position.set(
+      target.x + CAM_DIST * Math.cos(camPitch) * Math.sin(camYaw),
+      CAM_DIST * Math.sin(camPitch),
+      target.z + CAM_DIST * Math.cos(camPitch) * Math.cos(camYaw)
+    );
+    camera.lookAt(target);
+    sun.position.copy(target).add(new THREE.Vector3(14, 28, 10));
+    sun.target.position.copy(target);
+  }
+
+  function pill(x, y, label, num, done) {
+    p.textSize(13.5); p.textStyle(p.BOLD);
+    const w = p.textWidth(label) + 46, h = 29;
+    const lx = x - w / 2, ly = y - h;
+    p.noStroke(); p.fill(0, 0, 0, 42); p.rect(lx + 1, ly + 3, w, h, 15);
+    p.fill(255); p.rect(lx, ly, w, h, 15);
+    p.fill(done === 'ok' ? '#4caf6a' : done === 'bad' ? '#d9483b' : hex(C.orange));
+    p.circle(lx + 16, ly + 14.5, 21);
+    p.fill(255); p.textAlign(p.CENTER, p.CENTER);
+    p.text(done === 'ok' ? '✓' : done === 'bad' ? '✗' : num, lx + 16, ly + 15);
+    p.fill('#26262c'); p.textAlign(p.LEFT, p.CENTER); p.text(label, lx + 31, ly + 15);
+    p.stroke(255); p.strokeWeight(2); p.line(x, y, x, y + 12); p.noStroke();
+    return { x: lx, y: ly, w, h };
+  }
+
+  function areaTag(x, y, no, name) {
+    p.textSize(13.5); p.textStyle(p.BOLD);
+    const w = p.textWidth(name) + 54, h = 32;
+    p.noStroke(); p.fill('#1f242d'); p.rect(x - w / 2, y - h / 2, w, h, 16);
+    p.fill(hex(C.yellow)); p.textAlign(p.LEFT, p.CENTER); p.textSize(11); p.text(no, x - w / 2 + 13, y + 1);
+    p.fill(255); p.textSize(13.5); p.text(name, x - w / 2 + 34, y + 1);
+  }
+
+  function drawPlayerBadge() {
+    const sc = toScreen(player.position.x, 2.25, player.position.z);
+    p.textSize(13); p.textStyle(p.BOLD);
+    const w = p.textWidth(playerConfig.name) + 24, h = 24;
+    const lx = sc.x - w / 2, ly = sc.y - h;
+    p.noStroke(); p.fill(43, 125, 233, 230); p.rect(lx, ly, w, h, 12);
+    p.fill(255); p.textAlign(p.CENTER, p.CENTER); p.text(playerConfig.name, sc.x, ly + h / 2 + 0.5);
+  }
+
+  function drawHUD(t) {
+    p.clear();
+    labelHits.length = 0;
+    platforms.forEach(pl => {
+      const s = toScreen(pl.x + pl.w / 2 - 2, 0, pl.z + pl.d / 2);
+      areaTag(s.x, s.y + 20, pl.no, pl.name);
+    });
+    spots.forEach(s => {
+      const sc = toScreen(s.x, 2.4, s.z);
+      const r = pill(sc.x, sc.y + Math.sin(t * 2 + s.id) * 3, `第${s.id}關 ${s.name}`, String(s.id), s.state);
+      labelHits.push({ ...r, spot: s });
+    });
+    HELPERS.forEach((h, i) => {
+      const sc = toScreen(h.x, 2.5, h.z), y = sc.y + Math.sin(t * 3 + i) * 3;
+      p.textSize(12.5); p.textStyle(p.BOLD);
+      const w = p.textWidth(h.name) + 40, lx = sc.x - w / 2, ly = y - 26;
+      p.noStroke(); p.fill(0, 0, 0, 40); p.rect(lx + 1, ly + 3, w, 26, 13);
+      p.fill('#f2c230'); p.rect(lx, ly, w, 26, 13);
+      p.fill('#26262c'); p.circle(lx + 14, ly + 13, 19);
+      p.fill('#f2c230'); p.textAlign(p.CENTER, p.CENTER); p.text('?', lx + 14, ly + 13.5);
+      p.fill('#26262c'); p.textAlign(p.LEFT, p.CENTER); p.text(h.name, lx + 28, ly + 13.5);
+      p.fill('#f2c230'); p.triangle(sc.x - 5, ly + 25, sc.x + 5, ly + 25, sc.x, ly + 32);
+      labelHits.push({ x: lx, y: ly, w, h: 26, helper: h });
+    });
+    drawPlayerBadge();
+  }
+
+  p.draw = () => {
+    const dt = Math.min(p.deltaTime / 1000, 0.05);
+    const t = p.millis() / 1000;
+    update(dt, t);
+    renderer.render(scene, camera);
+    drawHUD(t);
+  };
+});
+</script>
+
+</body>
+</html>
